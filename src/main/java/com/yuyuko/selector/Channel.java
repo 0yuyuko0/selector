@@ -2,8 +2,8 @@ package com.yuyuko.selector;
 
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -17,33 +17,34 @@ public class Channel<T> implements Comparable<Channel<T>> {
         /**
          * 若有select不为null，则是selected完成的标志
          */
-        private volatile AtomicBoolean selected;
+        private volatile AtomicReference<Node<T>> selected;
+
         /**
          * 是否完成了工作，与unpark状态被破坏区别开来
          */
         private volatile boolean finished;
 
-         Node(Thread thread) {
+        Node(Thread thread) {
             this.thread = thread;
         }
 
-         void setSelected(AtomicBoolean selected) {
+        void setSelected(AtomicReference<Node<T>> selected) {
             this.selected = selected;
         }
 
-         Thread getThread() {
+        Thread getThread() {
             return thread;
         }
 
-         T getData() {
+        T getData() {
             return data;
         }
 
-         void setData(T data) {
+        void setData(T data) {
             this.data = data;
         }
 
-         AtomicBoolean getSelected() {
+        AtomicReference<Node<T>> getSelected() {
             return selected;
         }
 
@@ -245,7 +246,7 @@ public class Channel<T> implements Comparable<Channel<T>> {
         while (!queue.isEmpty()) {
             Node<T> node = queue.remove();
             //有select在等待
-            if (node.getSelected() != null && !node.getSelected().compareAndSet(false, true))
+            if (node.getSelected() != null && !node.getSelected().compareAndSet(null, node))
                 continue;
             return node;
         }

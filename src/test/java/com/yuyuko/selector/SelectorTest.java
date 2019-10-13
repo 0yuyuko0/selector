@@ -1,10 +1,13 @@
 package com.yuyuko.selector;
 
+import org.junit.Rule;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
+import org.junit.rules.Timeout;
 
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,45 +56,47 @@ public class SelectorTest {
 
     @RepeatedTest(100)
     void testSelectorInSelectorDone() throws InterruptedException {
-        Channel<Object> chan1 = new Channel<>();
-        Channel<Object> chan2 = new Channel<>();
-        Channel<Object> chan3 = new Channel<>();
-        int testCnt = 100;
-        CountDownLatch latch = new CountDownLatch(2);
-        new Timer()
-                .scheduleAtFixedRate(new TimerTask() {
-                    @Override
-                    public void run() {
-                        chan1.write(null);
-                    }
-                }, 0, 1);
-        new Thread(() -> {
-            for (int i = 0; i < testCnt; ++i) {
-                int finalI = i;
-                SelectionKey key = Selector.open()
-                        .register(chan1, read())
-                        .register(chan2, read())
-                        .select();
-                if (key.channel() == chan1)
-                    Selector.open()
-                            .register(chan3, write(new Object()))
+        assertTimeoutPreemptively(Duration.ofMillis(500),()-> {
+            Channel<Object> chan1 = new Channel<>();
+            Channel<Object> chan2 = new Channel<>();
+            Channel<Object> chan3 = new Channel<>();
+            int testCnt = 5000;
+            CountDownLatch latch = new CountDownLatch(2);
+            new Timer()
+                    .scheduleAtFixedRate(new TimerTask() {
+                        @Override
+                        public void run() {
+                            chan1.write(null);
+                        }
+                    }, 0, 1);
+            new Thread(() -> {
+                for (int i = 0; i < testCnt; ++i) {
+                    int finalI = i;
+                    SelectionKey key = Selector.open()
+                            .register(chan1, read())
+                            .register(chan2, read())
                             .select();
-            }
-            latch.countDown();
-        }).start();
-        new Thread(() -> {
-            for (int i = 0; i < testCnt; ++i) {
-                Selector.open()
-                        .register(chan2, write(new Object()))
-                        .register(chan3, read())
-                        .select();
-            }
-            latch.countDown();
-        }).start();
-        latch.await();
+                    if (key.channel() == chan1)
+                        Selector.open()
+                                .register(chan3, write(new Object()))
+                                .select();
+                }
+                latch.countDown();
+            }).start();
+            new Thread(() -> {
+                for (int i = 0; i < testCnt; ++i) {
+                    Selector.open()
+                            .register(chan2, write(new Object()))
+                            .register(chan3, read())
+                            .select();
+                }
+                latch.countDown();
+            }).start();
+            latch.await();
+        });
     }
 
-    @RepeatedTest(1000)
+    @RepeatedTest(10)
     void testSelectorDeadLock() throws BrokenBarrierException, InterruptedException {
         Channel<Object> chan1 = new Channel<>();
         Channel<Object> chan2 = new Channel<>();

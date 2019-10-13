@@ -2,13 +2,14 @@ package com.yuyuko.selector;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 
 public class Selector {
     private List<SelectionKey<?>> keys = new ArrayList<>();
 
-    private final AtomicBoolean selected = new AtomicBoolean(false);
+    private final AtomicReference<Channel.Node<?>> selected = new AtomicReference<>();
 
     private SelectionKey fallback;
 
@@ -33,6 +34,8 @@ public class Selector {
     }
 
     public SelectionKey<?> select() {
+        if (keys.isEmpty())
+            return null;
         keys = unorder(keys);
 
         List<Channel> lockOrder =
@@ -68,9 +71,8 @@ public class Selector {
 
         Thread thread = Thread.currentThread();
 
-        List<Channel.Node<?>> nodes = new ArrayList<>(keys.size());
+        Map<Channel.Node<?>, SelectionKey<?>> nodeMap = new IdentityHashMap<>(keys.size());
         //加入到每个channel的队列里，等待被唤醒
-
         for (SelectionKey<?> key : keys) {
             Channel.Node node = new Channel.Node(thread);
             node.setSelected(selected);
@@ -79,31 +81,23 @@ public class Selector {
                 key.channel().getWriteQueue().add(node);
             } else
                 key.channel().getReadQueue().add(node);
-            nodes.add(node);
+            nodeMap.put(node, key);
         }
 
         unlockAll(lockOrder);
 
         //等待被唤醒
-        while (!selected.get()) {
+        while (selected.get() == null) {
             LockSupport.park(thread);
         }
 
-        //被唤醒了，找到key
-        for (int i = 0; i < nodes.size(); i++) {
-            Channel.Node<?> node = nodes.get(i);
-            if (node.isFinished()) {
-                SelectionKey key = keys.get(i);
-                if (key.type() == SelectionKey.WRITE && Thread.interrupted())
-                    throw new ChannelAlreadyClosedException("one of the channel in select was " +
-                            "closed!");
-                else if (key.type() == SelectionKey.READ)
-                    key.setData(node.getData());
-                return key;
-            }
-        }
+        SelectionKey key = nodeMap.get(selected.get());
+        key.setData(selected.get().getData());
 
-        throw new RuntimeException("select wakeup but no key selected, unreachable!!!");
+        if (key.type() == SelectionKey.WRITE && Thread.interrupted())
+            throw new ChannelAlreadyClosedException("one of the channel in select was " +
+                    "closed!");
+        return key;
     }
 
     @SuppressWarnings("unchecked")
