@@ -252,11 +252,11 @@ public class SelectorTest {
             }
             if (hasDefault)
                 select.fallback(fallback());
-            SelectionKey<Integer> key = select.select();
+            SelectionKey<?> key = select.select();
             if (key.type() == READ) {
                 if(key.data() == null)
                     System.out.println("shit");
-                receiveFromSenderChan.add(key.data());
+                receiveFromSenderChan.add(((Integer) key.data()));
             }
             else if (key.type() == FALLBACK) {
                 receiveFromSelectorDefault.add(i);
@@ -308,8 +308,8 @@ public class SelectorTest {
                 int finalJ = j;
                 select.register(chan[j], write(finalJ));
             }
-            SelectionKey<Integer> key = select.select();
-            cnts[key.data()].incrementAndGet();
+            SelectionKey<?> key = select.select();
+            cnts[((Integer) key.data())].incrementAndGet();
         }
         for (int j = 0; j < chanCnt; j++) {
             System.out.println(String.format("chan %d was selected %d times", j, cnts[j].get()));

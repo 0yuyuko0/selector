@@ -46,6 +46,10 @@ public class SelectionKey<T> {
         return data;
     }
 
+    public <E> E data(Class<E> clazz) {
+        return clazz.cast(data);
+    }
+
     public Channel<T> channel() {
         return channel;
     }

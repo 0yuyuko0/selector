@@ -32,7 +32,7 @@ public class Selector {
         return new Selector();
     }
 
-    public <T> SelectionKey<T> select() {
+    public SelectionKey<?> select() {
         keys = unorder(keys);
 
         List<Channel> lockOrder =
@@ -48,14 +48,14 @@ public class Selector {
                     if (channel.hasWaitingReader() || channel.hasAvailableBufferSpace() || channel.isClosed()) {
                         if (!handleWrite(key, lockOrder))
                             continue;
-                        return (SelectionKey<T>) key;
+                        return key;
                     }
                     break;
                 case SelectionKey.READ:
                     if (channel.hasWaitingWriter() || channel.hasDataInBuffer() || channel.isClosed()) {
                         if (!handleRead(key, lockOrder))
                             continue;
-                        return (SelectionKey<T>) key;
+                        return key;
                     }
                     break;
                 default:

@@ -23,27 +23,27 @@ public class Channel<T> implements Comparable<Channel<T>> {
          */
         private volatile boolean finished;
 
-        public Node(Thread thread) {
+         Node(Thread thread) {
             this.thread = thread;
         }
 
-        public void setSelected(AtomicBoolean selected) {
+         void setSelected(AtomicBoolean selected) {
             this.selected = selected;
         }
 
-        public Thread getThread() {
+         Thread getThread() {
             return thread;
         }
 
-        public T getData() {
+         T getData() {
             return data;
         }
 
-        public void setData(T data) {
+         void setData(T data) {
             this.data = data;
         }
 
-        public AtomicBoolean getSelected() {
+         AtomicBoolean getSelected() {
             return selected;
         }
 
